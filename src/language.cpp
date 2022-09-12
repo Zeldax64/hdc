@@ -84,7 +84,10 @@ static std::size_t predict(const hdv::HDV &query,
 // Dataset parsers
 lang_t read_lang_file(const std::string &path) {
     std::ifstream f(path);
-    assert(f.is_open());
+    if (!f.is_open()) {
+        std::cerr << "Could not open file: " << path << std::endl;
+        assert(f.is_open());
+    }
     lang_t lines;
 
     std::string line;
