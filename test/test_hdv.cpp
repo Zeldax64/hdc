@@ -117,3 +117,41 @@ TEST_CASE("Binding") {
 TEST_CASE("Permute") {
 
 }
+
+/*
+ * Initialization of an Item Memory (IM) must contain orthogonal vectors
+ */
+TEST_CASE("Item Memory") {
+    int entries = 100;
+    auto im = hdv::init_im(entries, _DIM);
+
+    for (int i = 0; i < im.size(); i++) {
+        for (int j = 0; j < im.size(); j++) {
+            if (i != j) {
+                REQUIRE(_is_orthogonal(im[i], im[j]));
+            }
+        }
+    }
+}
+
+/*
+ * Initialization of a Continuous Item Memory (CIM) must contain subsquent
+ * vectors that are similar to each other.
+ */
+TEST_CASE("Continuous Item Memory") {
+    int entries = 100;
+    auto cim = hdv::init_cim(entries, _DIM);
+
+    // Let's consider that a vector is similar to the five subsequent vectors
+    for (int i = 0; i < cim.size(); i++) {
+        for (int j = i; j < cim.size() && j < i+5; j++) {
+            REQUIRE(!_is_orthogonal(cim[i], cim[j]));
+        }
+    }
+
+    // Test disimilarity between distant items in CIM
+    for (int i = 0; i < 10; i++) {
+        REQUIRE(_is_orthogonal(cim[i], cim[cim.size()-i-1]));
+    }
+
+}

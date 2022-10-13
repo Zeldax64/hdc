@@ -109,6 +109,68 @@ int hdv::HDV::ones() {
     return ones;
 }
 
+std::vector<hdv::HDV> hdv::init_im(std::size_t entries, hdv::dim_t dim) {
+    std::vector<hdv::HDV> im;
+
+    for (std::size_t i = 0; i < entries; i++) {
+        im.emplace_back(hdv::HDV(dim));
+    }
+
+    return im;
+}
+
+
+std::vector<hdv::HDV> hdv::init_cim(std::size_t entries, hdv::dim_t dim) {
+    assert(entries > 1);
+
+    std::vector<hdv::HDV> cim;
+    cim.emplace_back(hdv::HDV(dim));
+    hdv::dim_t index = 0;
+    hdv::dim_t flips = dim / entries;
+
+    for (int i = 1; i < entries; i++) {
+        hdv::HDV prev = cim[i-1];
+        cim.emplace_back(hdv::flip(prev, index, flips));
+        index += flips;
+    }
+
+    return cim;
+}
+
+int hdv::am_search(const hdv::HDV &query, const std::vector<HDV> &am) {
+    int am_index = 0;
+    hdv::dim_t min_dist = am[0].dim;
+
+    for (int i = 0; i < am.size(); i++) {
+        hdv::dim_t new_dist = hdv::dist(query, am[i]);
+        if (new_dist < min_dist) {
+            min_dist = new_dist;
+            am_index = i;
+        }
+    }
+
+    return am_index;
+}
+
+void hdv::HDV::flip(dim_t index, dim_t flips) {
+    for (dim_t i = 0; i < flips; i++) {
+        // Get the _data entry that contains the current dimension index
+        std::size_t data_index = (index+i) / _sizeof_vec_t();
+        vec_t data_word = this->_data.at(data_index);
+        // Flip the correspondent dim bit
+        //data_word ^= 0xA >> ((index+i) % _sizeof_vec_t());
+        std::size_t bit_index = (_sizeof_vec_t() - ((index+i) % _sizeof_vec_t()));
+        data_word ^= 1 << bit_index;
+        this->_data[data_index] = data_word;
+    }
+}
+
+hdv::HDV hdv::flip(const hdv::HDV &v, hdv::dim_t index, hdv::dim_t flips) {
+    hdv::HDV flipped = v;
+    flipped.flip(index, flips);
+    return flipped;
+}
+
 //static hdv::dim_t _dot(const hdv::HDV &v1, const hdv::HDV &v2) {
 //    hdv::dim_t res = 0;
 //    for (std::size_t i = 0; i < v1._data.size(); i++) {
