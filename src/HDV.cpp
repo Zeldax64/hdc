@@ -20,6 +20,7 @@ static std::ostream& print_hdv(
     return os << "\n\n";
 }
 
+// Returns the size of vec_t in bits
 static int _sizeof_vec_t() {
     return sizeof(hdv::vec_t) * 8;
 }
@@ -68,7 +69,7 @@ void hdv::HDV::p() {
     }
 }
 
-hdv::HDV hdv::HDV::operator*(const HDV &op) {
+hdv::HDV hdv::HDV::operator*(const HDV &op) const {
     assert(this->dim == op.dim);
 
     HDV res(this->dim, false);

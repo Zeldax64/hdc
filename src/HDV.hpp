@@ -17,7 +17,7 @@ namespace hdv {
 
         // Operations
         void p(); // Permute
-        HDV operator*(const HDV &op);
+        HDV operator*(const HDV &op) const;
         //bool operator[](dim_t index);
         int ones();
         void flip(dim_t index, dim_t flips);
