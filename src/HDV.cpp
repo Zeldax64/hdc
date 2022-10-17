@@ -166,10 +166,20 @@ void hdv::HDV::flip(dim_t index, dim_t flips) {
     }
 }
 
+void hdv::HDV::invert() {
+    this->flip(0, this->dim);
+}
+
 hdv::HDV hdv::flip(const hdv::HDV &v, hdv::dim_t index, hdv::dim_t flips) {
     hdv::HDV flipped = v;
     flipped.flip(index, flips);
     return flipped;
+}
+
+hdv::HDV hdv::invert(const HDV &v) {
+    hdv::HDV inverse = v;
+    inverse.invert();
+    return inverse;
 }
 
 //static hdv::dim_t _dot(const hdv::HDV &v1, const hdv::HDV &v2) {

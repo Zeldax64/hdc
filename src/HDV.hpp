@@ -21,6 +21,7 @@ namespace hdv {
         //bool operator[](dim_t index);
         int ones();
         void flip(dim_t index, dim_t flips);
+        void invert();
 
         std::vector<vec_t> _data;
     };
@@ -31,6 +32,7 @@ namespace hdv {
 
     dim_t dist(const HDV &op1, const HDV &op2);
     HDV flip(const HDV &v, dim_t index, dim_t flips);
+    HDV invert(const HDV &v);
     HDV p(const HDV &op);
     HDV maj(const HDV &op1, const HDV &op2);
     HDV maj(const HDV &op1, const HDV &op2, const HDV &op3);
