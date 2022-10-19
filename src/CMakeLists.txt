@@ -14,3 +14,10 @@ add_executable(voicehd
 )
 target_compile_definitions(voicehd PUBLIC VOICEHD)
 target_link_libraries(voicehd hdv_o)
+
+add_executable(mnist
+    ${CMAKE_CURRENT_LIST_DIR}/main.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/mnist.cpp
+)
+target_compile_definitions(mnist PUBLIC MNIST)
+target_link_libraries(mnist hdv_o)
