@@ -4,8 +4,9 @@ This repository implements Hyperdimensional Computing (HDC) models in C++. The m
 
 Models implemented:
 
-- Language recognition: Detect the text of an unknown string. 
-- VoiceHD: Speech recognition.
+- Language recognition (language): Detect the text of an unknown string. 
+- VoiceHD (voicehd): Speech recognition.
+- Digit recognition (mnist): Detect a handwritten digit using the MNIST dataset.
 
 ## Running
 
