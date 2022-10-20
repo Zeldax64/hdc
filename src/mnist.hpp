@@ -1,3 +1,3 @@
 #pragma once
 
-int voicehd(int argc, char *argv[]);
+int mnist(int argc, char *argv[]);
