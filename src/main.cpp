@@ -1,8 +1,12 @@
+#include "emg.hpp"
 #include "language.hpp"
 #include "mnist.hpp"
 #include "voicehd.hpp"
 
 int main(int argc, char *argv[]) {
+#ifdef EMG
+    emg(argc, argv);
+#endif
 #ifdef LANGUAGE
     language(argc, argv);
 #endif

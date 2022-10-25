@@ -21,3 +21,10 @@ add_executable(mnist
 )
 target_compile_definitions(mnist PUBLIC MNIST)
 target_link_libraries(mnist hdv_o)
+
+add_executable(emg
+    ${CMAKE_CURRENT_LIST_DIR}/main.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/emg.cpp
+)
+target_compile_definitions(emg PUBLIC EMG)
+target_link_libraries(emg hdv_o)
