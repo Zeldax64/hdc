@@ -25,6 +25,7 @@ target_link_libraries(mnist hdv_o)
 add_executable(emg
     ${CMAKE_CURRENT_LIST_DIR}/main.cpp
     ${CMAKE_CURRENT_LIST_DIR}/emg.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common.cpp
 )
 target_compile_definitions(emg PUBLIC EMG)
 target_link_libraries(emg hdv_o)
