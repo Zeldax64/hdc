@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <ctime>
 #include <iostream>
@@ -55,17 +56,19 @@ hdv::HDV::HDV(dim_t dim, bool random) {
 
 hdv::HDV::~HDV() {}
 
-void hdv::HDV::p() {
+void hdv::HDV::p(std::uint32_t times) {
     // Get HV's most significant bit (MSB)
     bool hv_msb = _get_bit(this->_data[0], _sizeof_vec_t()-1);
     bool next_msb;
 
-    for (int i = 0; i < this->_data.size(); i++) {
-        next_msb = _get_bit(this->_data[i+1], _sizeof_vec_t()-1);
-        if (i == this->_data.size()-1) {
-            next_msb = hv_msb;
+    for (std::uint32_t p = 0; p < times; p++) {
+        for (int i = 0; i < this->_data.size(); i++) {
+            next_msb = _get_bit(this->_data[i+1], _sizeof_vec_t()-1);
+            if (i == this->_data.size()-1) {
+                next_msb = hv_msb;
+            }
+            this->_data[i] <<= 1 | (next_msb ? 1 : 0);
         }
-        this->_data[i] <<= 1 | (next_msb ? 1 : 0);
     }
 }
 
@@ -215,9 +218,9 @@ hdv::dim_t hdv::dist(const HDV &op1, const HDV &op2) {
     return res;
 }
 
-hdv::HDV hdv::p(const HDV &op) {
+hdv::HDV hdv::p(const HDV &op, std::uint32_t times) {
     HDV v = op;
-    v.p();
+    v.p(times);
     return v;
 }
 

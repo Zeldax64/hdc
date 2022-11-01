@@ -16,7 +16,7 @@ namespace hdv {
         virtual ~HDV();
 
         // Operations
-        void p(); // Permute
+        void p(std::uint32_t times=1); // Permute
         HDV operator*(const HDV &op) const;
         //bool operator[](dim_t index);
         int ones();
@@ -33,7 +33,7 @@ namespace hdv {
     dim_t dist(const HDV &op1, const HDV &op2);
     HDV flip(const HDV &v, dim_t index, dim_t flips);
     HDV invert(const HDV &v);
-    HDV p(const HDV &op);
+    HDV p(const HDV &op, std::uint32_t times=1);
     HDV maj(const HDV &op1, const HDV &op2);
     HDV maj(const HDV &op1, const HDV &op2, const HDV &op3);
     HDV maj(const std::vector<hdv::HDV> &v);
