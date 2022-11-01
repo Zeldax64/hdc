@@ -37,6 +37,7 @@ namespace hdv {
     HDV maj(const HDV &op1, const HDV &op2);
     HDV maj(const HDV &op1, const HDV &op2, const HDV &op3);
     HDV maj(const std::vector<hdv::HDV> &v);
+    HDV mul(const std::vector<hdv::HDV> &v);
 }
 
 std::ostream& operator<<(std::ostream &os, const hdv::HDV &v);

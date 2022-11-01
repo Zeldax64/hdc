@@ -281,3 +281,17 @@ hdv::HDV hdv::maj(const std::vector<hdv::HDV> &vectors) {
 
     return res;
 }
+
+hdv::HDV hdv::mul(const std::vector<hdv::HDV> &vectors) {
+    if (vectors.size() == 1) {
+        return vectors[0];
+    }
+
+    hdv::HDV res = vectors[0];
+
+    for (std::size_t i = 1; i < vectors.size(); i++) {
+        res = res * vectors[i];
+    }
+
+    return res;
+}
