@@ -7,6 +7,7 @@ Models implemented:
 - Language recognition (language): Detect the text of an unknown string. 
 - VoiceHD (voicehd): Speech recognition.
 - Digit recognition (mnist): Detect a handwritten digit using the MNIST dataset.
+- EMG (emg): Hand gesture recognition.
 
 ## Running
 
