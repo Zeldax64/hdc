@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "HDV.hpp"
+#include "hdc.hpp"
 
 typedef std::vector<std::string> lang_t;
 typedef std::vector<lang_t> dataset_t;
@@ -56,22 +56,22 @@ class ExMajReduction : public std::exception {
     }
 };
 
-static hdv::HDV _maj_reduction(const std::vector<hdv::HDV> &v) {
+static hdc::HDV _maj_reduction(const std::vector<hdc::HDV> &v) {
     if (v.size() < 3) { // 3 is the minimal number to compute the maj()
         throw ExMajReduction(v.size());
     }
-    return hdv::maj(v);
+    return hdc::maj(v);
 }
 
-static std::size_t predict(const hdv::HDV &query,
-        const std::vector<hdv::HDV> &am) {
+static std::size_t predict(const hdc::HDV &query,
+        const std::vector<hdc::HDV> &am) {
     std::size_t answer = 0;
-    hdv::dim_t dist = query.dim;
-    hdv::dim_t min_dist = query.dim;
+    hdc::dim_t dist = query.dim;
+    hdc::dim_t min_dist = query.dim;
 
     for (std::size_t i = 0; i < am.size(); i++) {
         const auto &v = am[i];
-        dist = hdv::dist(query, v);
+        dist = hdc::dist(query, v);
         if (dist < min_dist) {
             answer = i;
             min_dist = dist;
@@ -109,13 +109,13 @@ dataset_t read_dataset(const std::string &dataset_path) {
     return dataset;
 }
 
-hdv::HDV encode_3gram(const std::vector<hdv::HDV> &im, const char *str) {
+hdc::HDV encode_3gram(const std::vector<hdc::HDV> &im, const char *str) {
     // ASCII table offset to the first lower char, i.e., the letter "a". The IM
     // is 27-entry memory packed as 26 letters and the space (' ') entry. The
     // input text in the *str variable must contain only lower-case letters
     // without punctuation.
     const int FIRST_lOWER_CHAR = 97;
-    std::vector<hdv::HDV> items;
+    std::vector<hdc::HDV> items;
     for (int i = 0; i < 3; i++, str++) {
         if (*str != ' ') {
             // Assign the lower-case letter to its IM correspondent
@@ -134,8 +134,8 @@ hdv::HDV encode_3gram(const std::vector<hdv::HDV> &im, const char *str) {
     return items[0]*items[1]*items[2];
 }
 
-hdv::HDV encode_query(const std::vector<hdv::HDV> &im, const char *str) {
-    std::vector<hdv::HDV> n_grams;
+hdc::HDV encode_query(const std::vector<hdc::HDV> &im, const char *str) {
+    std::vector<hdc::HDV> n_grams;
 
     // Encode n-grams. Since we create 3-grams, loop until the pointer of str+3
     // is different from the null character.
@@ -147,8 +147,8 @@ hdv::HDV encode_query(const std::vector<hdv::HDV> &im, const char *str) {
     return _maj_reduction(n_grams);
 }
 
-hdv::HDV train_language(const std::vector<hdv::HDV> &im, const lang_t &lang) {
-    std::vector<hdv::HDV> query_vectors;
+hdc::HDV train_language(const std::vector<hdc::HDV> &im, const lang_t &lang) {
+    std::vector<hdc::HDV> query_vectors;
 
     for (auto &line : lang) {
         //std::cout << "Encoding line: " << line << std::endl;
@@ -166,15 +166,15 @@ hdv::HDV train_language(const std::vector<hdv::HDV> &im, const lang_t &lang) {
     return _maj_reduction(query_vectors);
 }
 
-std::size_t test_language(const std::vector<hdv::HDV> &im,
-        const std::vector<hdv::HDV> &am,
+std::size_t test_language(const std::vector<hdc::HDV> &im,
+        const std::vector<hdc::HDV> &am,
         const lang_t &lang,
         const std::size_t right_answer) {
     std::size_t correct = 0;
 
     for (auto &sentence : lang) {
         const char *str = sentence.c_str();
-        const hdv::HDV &query = encode_query(im, str);
+        const hdc::HDV &query = encode_query(im, str);
         std::size_t prediction = predict(query, am);
         correct += prediction == right_answer ? 1 : 0;
     }
@@ -183,9 +183,9 @@ std::size_t test_language(const std::vector<hdv::HDV> &im,
 }
 
 int language(int argc, char *argv[]) {
-    const hdv::dim_t dim = 1000;
-    std::vector<hdv::HDV> im;
-    std::vector<hdv::HDV> am;
+    const hdc::dim_t dim = 1000;
+    std::vector<hdc::HDV> im;
+    std::vector<hdc::HDV> am;
 
     const auto &dataset = read_dataset(train_dir);
     const auto &testset = read_dataset(test_dir);
@@ -194,7 +194,7 @@ int language(int argc, char *argv[]) {
     // Initialize Item Memory with 27 vector, one for each alphabet letter +
     // space
     for (int i = 0; i < 27; i++) {
-        im.emplace_back(hdv::HDV(dim));
+        im.emplace_back(hdc::HDV(dim));
     }
 
     for (auto &lang : dataset) {

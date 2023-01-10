@@ -3,13 +3,13 @@
 #include <iostream>
 #include <vector>
 
-#include "HDV.hpp"
+#include "hdc.hpp"
 
-static const hdv::dim_t _DIM = 1000;
+static const hdc::dim_t _DIM = 1000;
 
-static bool _is_orthogonal(const hdv::HDV &a, const hdv::HDV &b) {
-    hdv::dim_t dim = a.dim;
-    std::size_t dist = hdv::dist(a, b);
+static bool _is_orthogonal(const hdc::HDV &a, const hdc::HDV &b) {
+    hdc::dim_t dim = a.dim;
+    std::size_t dist = hdc::dist(a, b);
     float difference = (float)dist/(float)dim;
     // We consider that two vectors are orthogonal if at least 40% of its
     // entries are different.
@@ -17,9 +17,9 @@ static bool _is_orthogonal(const hdv::HDV &a, const hdv::HDV &b) {
 }
 
 //TODO: Remove later since it is useless
-//static bool _is_similar(const hdv::HDV &a, const hdv::HDV &b) {
-//    hdv::dim_t dim = a.dim;
-//    std::size_t dist = hdv::dist(a, b);
+//static bool _is_similar(const hdc::HDV &a, const hdc::HDV &b) {
+//    hdc::dim_t dim = a.dim;
+//    std::size_t dist = hdc::dist(a, b);
 //    float difference = (float)dist/(float)dim;
 //    //printf("similar(): Dist: %ld, dim: %ld diff: %f%%\n", dist, dim, difference);
 //    // We consider that two vectors are similar if their difference is lower
@@ -32,9 +32,9 @@ static bool _is_orthogonal(const hdv::HDV &a, const hdv::HDV &b) {
  */
 TEST_CASE("Orthogonality of random vectors") {
     const int VECTORS = 100;
-    std::vector<hdv::HDV>vectors;
+    std::vector<hdc::HDV>vectors;
     for (int i = 0; i < VECTORS; i++) {
-        vectors.emplace_back(hdv::HDV(_DIM));
+        vectors.emplace_back(hdc::HDV(_DIM));
     }
 
     for (int i = 0; i < VECTORS; i++) {
@@ -53,14 +53,14 @@ TEST_CASE("Orthogonality of random vectors") {
  * similar to all original HVs.
  */
 TEST_CASE("Bundle") {
-    std::vector<hdv::HDV> vectors;
+    std::vector<hdc::HDV> vectors;
     for (int i = 0; i < 11; i++) {
-        vectors.emplace_back(hdv::HDV(_DIM));
+        vectors.emplace_back(hdc::HDV(_DIM));
     }
-    hdv::HDV res = hdv::maj(vectors);
-    hdv::dim_t dim = res.dim;
+    hdc::HDV res = hdc::maj(vectors);
+    hdc::dim_t dim = res.dim;
     for (int i = 0; i < vectors.size(); i++) {
-        std::size_t dist = hdv::dist(res, vectors[i]);
+        std::size_t dist = hdc::dist(res, vectors[i]);
         float difference = (float)dist/(float)dim;
         REQUIRE(!_is_orthogonal(res, vectors[i]));
     }
@@ -71,9 +71,9 @@ TEST_CASE("Bundle") {
  * is dissimilar to all original HVs.
  */
 TEST_CASE("Binding") {
-    hdv::HDV a(_DIM), b(_DIM), c(_DIM);
+    hdc::HDV a(_DIM), b(_DIM), c(_DIM);
 
-    auto check = [](const hdv::HDV &a, const hdv::HDV &b, const hdv::HDV &c) {
+    auto check = [](const hdc::HDV &a, const hdc::HDV &b, const hdc::HDV &c) {
         for (std::size_t i = 0; i < c._data.size(); i++) {
             if (!(c._data[i] == (a._data[i] ^ b._data[i]))) {
                 REQUIRE(false);
@@ -83,9 +83,9 @@ TEST_CASE("Binding") {
     };
 
     SECTION("Mask test") {
-        int bits_in_vec_t = sizeof(hdv::vec_t) * 8;
+        int bits_in_vec_t = sizeof(hdc::vec_t) * 8;
         // Bit masks
-        hdv::vec_t p = 0, p_ = 0;
+        hdc::vec_t p = 0, p_ = 0;
 
         // Create pattern "1010...10"
         for (int i = 0; i < bits_in_vec_t; i++) {
@@ -123,7 +123,7 @@ TEST_CASE("Permute") {
  */
 TEST_CASE("Item Memory") {
     int entries = 100;
-    auto im = hdv::init_im(entries, _DIM);
+    auto im = hdc::init_im(entries, _DIM);
 
     for (int i = 0; i < im.size(); i++) {
         for (int j = 0; j < im.size(); j++) {
@@ -140,7 +140,7 @@ TEST_CASE("Item Memory") {
  */
 TEST_CASE("Continuous Item Memory") {
     int entries = 100;
-    auto cim = hdv::init_cim(entries, _DIM);
+    auto cim = hdc::init_cim(entries, _DIM);
 
     // Let's consider that a vector is similar to the five subsequent vectors
     for (int i = 0; i < cim.size(); i++) {

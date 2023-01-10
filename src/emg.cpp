@@ -11,7 +11,7 @@
 
 #include "emg.hpp"
 #include "common.hpp"
-#include "HDV.hpp"
+#include "hdc.hpp"
 
 typedef double data_entry_t;
 typedef std::array<data_entry_t, 4> data_t;
@@ -172,16 +172,16 @@ int get_amplitude_bin(float amp, int levels) {
     return -1;
 }
 
-hdv::HDV encode_query(
+hdc::HDV encode_query(
         int levels,
         int N_grams,
         std::size_t entry,
         const dataset_t &dataset,
-        const std::vector<hdv::HDV> &idm,
-        const std::vector<hdv::HDV> &cim
+        const std::vector<hdc::HDV> &idm,
+        const std::vector<hdc::HDV> &cim
         ) {
-    std::vector<hdv::HDV> spatial;
-    std::vector<hdv::HDV> temporal;
+    std::vector<hdc::HDV> spatial;
+    std::vector<hdc::HDV> temporal;
 
     for (int i = 0; i < N_grams; i++) {
         const data_t &channels = dataset.at(entry+i);
@@ -193,17 +193,17 @@ hdv::HDV encode_query(
         }
 
         if (g_encode == TEMPORAL) {
-            hdv::HDV t = hdv::maj(spatial);
+            hdc::HDV t = hdc::maj(spatial);
             t.p(i);
             temporal.emplace_back(t);
         }
     }
 
     if (g_encode == SPATIAL) {
-        return hdv::maj(spatial);
+        return hdc::maj(spatial);
     }
     else {
-        return hdv::mul(temporal);
+        return hdc::mul(temporal);
     }
 }
 
@@ -212,15 +212,15 @@ float predict(
         int N_grams,
         const dataset_t &test_data,
         const label_t &labels,
-        const std::vector<hdv::HDV> &idm,
-        const std::vector<hdv::HDV> &cim,
-        const std::vector<hdv::HDV> &am) {
+        const std::vector<hdc::HDV> &idm,
+        const std::vector<hdc::HDV> &cim,
+        const std::vector<hdc::HDV> &am) {
     assert(labels.size() == test_data.size());
 
     std::size_t correct = 0;
 
     for (std::size_t i = 0; i+N_grams-1 < test_data.size(); i++) {
-        int pred_label = hdv::am_search(
+        int pred_label = hdc::am_search(
                 encode_query(levels, N_grams, i, test_data, idm, cim),
                 am);
         // Adjust the predicted label value since the labels dataset use values
@@ -234,37 +234,37 @@ float predict(
     return (float)correct/(float)test_data.size()*100.;
 }
 
-std::vector<hdv::HDV> train_am(
+std::vector<hdc::HDV> train_am(
         int levels,
         int N,
         const dataset_t &train_dataset,
         const label_t &train_labels,
         const dataset_t &test_dataset,
         const label_t &test_labels,
-        const std::vector<hdv::HDV> &idm,
-        const std::vector<hdv::HDV> &cim
+        const std::vector<hdc::HDV> &idm,
+        const std::vector<hdc::HDV> &cim
         ) {
-    std::vector<hdv::HDV> am;
-    std::vector<hdv::HDV> encoded;
+    std::vector<hdc::HDV> am;
+    std::vector<hdc::HDV> encoded;
 
     int min = *std::min_element(train_labels.begin(), train_labels.end());
     label_entry_t label = min;
 
     for (std::size_t i = 0; i+N-1 < train_labels.size(); i++) {
         if (label != train_labels[i]) {
-            am.emplace_back(hdv::maj(encoded));
+            am.emplace_back(hdc::maj(encoded));
             encoded.clear();
             label = train_labels[i];
         }
 
         if (train_labels[i] == train_labels[i+N-1]) {
-            hdv::HDV enc = encode_query(levels, N, i, train_dataset, idm, cim);
+            hdc::HDV enc = encode_query(levels, N, i, train_dataset, idm, cim);
             encoded.emplace_back(enc);
         }
     }
 
     // Append last value
-    am.emplace_back(hdv::maj(encoded));
+    am.emplace_back(hdc::maj(encoded));
 
     return am;
 }
@@ -276,24 +276,24 @@ int predict_window_max(
         std::size_t stop,
         const dataset_t &dataset,
         const label_t &labels,
-        const std::vector<hdv::HDV> &idm,
-        const std::vector<hdv::HDV> &cim,
-        const std::vector<hdv::HDV> &am) {
-    std::vector<hdv::HDV> encoded;
+        const std::vector<hdc::HDV> &idm,
+        const std::vector<hdc::HDV> &cim,
+        const std::vector<hdc::HDV> &am) {
+    std::vector<hdc::HDV> encoded;
 
     // TODO: dado um começo e um final, predizer quem está correto dentro da
     // window
     for (int i = start; i < stop; i++) {
-        hdv::HDV enc = encode_query(levels, N_grams, i, dataset, idm, cim);
+        hdc::HDV enc = encode_query(levels, N_grams, i, dataset, idm, cim);
         encoded.emplace_back(enc);
     }
 
     // Search for the vector with highest similarity
     int index = 0;
-    hdv::dim_t min_dist = encoded.at(0).dim;
+    hdc::dim_t min_dist = encoded.at(0).dim;
     for (const auto &v : encoded) {
         for (int i = 0; i < am.size(); i++) {
-            hdv::dim_t dist = hdv::dist(v, am[i]);
+            hdc::dim_t dist = hdc::dist(v, am[i]);
 
             if (dist < min_dist) {
                 min_dist = dist;
@@ -310,9 +310,9 @@ float test_slicing(
         int N_grams,
         const dataset_t &dataset,
         const label_t &labels,
-        const std::vector<hdv::HDV> &idm,
-        const std::vector<hdv::HDV> &cim,
-        const std::vector<hdv::HDV> &am) {
+        const std::vector<hdc::HDV> &idm,
+        const std::vector<hdc::HDV> &cim,
+        const std::vector<hdc::HDV> &am) {
     // This function is a simplified version of the same function
     // available in Imani's matlab script since it does not consider
     // overlapping windows
@@ -369,7 +369,7 @@ float test_slicing(
 int emg(int argc, char *argv[]) {
     const int CHANNELS = 4;
 
-    hdv::dim_t dim = 10000;
+    hdc::dim_t dim = 10000;
     int levels = 21;
     g_encode = SPATIAL;
     int N_grams = 4;
@@ -392,15 +392,15 @@ int emg(int argc, char *argv[]) {
     //    " Training Fraction: " << training_frac * 100.0 << "%" <<
     //    " Downsample: " << downsample_rate << std::endl;
 
-    std::vector<hdv::HDV> idm; // ID memory
-    std::vector<hdv::HDV> cim; // Continuous item memory
-    std::vector<hdv::HDV> am;  // Associative memory
+    std::vector<hdc::HDV> idm; // ID memory
+    std::vector<hdc::HDV> cim; // Continuous item memory
+    std::vector<hdc::HDV> am;  // Associative memory
 
     // Initialize the ID memory with 4 entries, one for each channel used in
     // the dataset
-    idm = hdv::init_im(CHANNELS, dim);
+    idm = hdc::init_im(CHANNELS, dim);
     // Initialize the continuous item memory
-    cim = hdv::init_cim(levels, dim);
+    cim = hdc::init_cim(levels, dim);
 
     // Dataset variables
     std::vector<dataset_t> complete;

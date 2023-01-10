@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "mnist.hpp"
-#include "HDV.hpp"
+#include "hdc.hpp"
 
 // Each image contains 28x28 (784) pixels
 const std::size_t _SIZE_IMG = 784;
@@ -85,14 +85,14 @@ label_t read_labels(const char* path) {
     return labels;
 }
 
-hdv::HDV encode_query(
+hdc::HDV encode_query(
         const data_t &pixels,
-        const std::vector<hdv::HDV> &idm
+        const std::vector<hdc::HDV> &idm
         ) {
-    std::vector<hdv::HDV> vec;
+    std::vector<hdc::HDV> vec;
 
     for (std::size_t i = 0; i < pixels.size(); i++) {
-        hdv::HDV p_vec = idm.at(i);
+        hdc::HDV p_vec = idm.at(i);
         // Bitshift black pixels
         if (!pixels[i]) {
             p_vec.p();
@@ -100,20 +100,20 @@ hdv::HDV encode_query(
         vec.emplace_back(p_vec);
     }
 
-    return hdv::maj(vec);
+    return hdc::maj(vec);
 }
 
 float predict(
         const dataset_t &test_data,
         const label_t &labels,
-        const std::vector<hdv::HDV> &idm,
-        const std::vector<hdv::HDV> &am) {
+        const std::vector<hdc::HDV> &idm,
+        const std::vector<hdc::HDV> &am) {
     assert(labels.size() == test_data.size());
 
     std::size_t correct = 0;
 
     for (std::size_t i = 0; i < test_data.size(); i++) {
-        int pred_label = hdv::am_search(
+        int pred_label = hdc::am_search(
                 encode_query(test_data[i], idm),
                 am);
         if (pred_label == labels[i]) {
@@ -124,20 +124,20 @@ float predict(
     return (float)correct/(float)test_data.size()*100.;
 }
 
-std::vector<hdv::HDV> train_am(
+std::vector<hdc::HDV> train_am(
         int retrain,
         const dataset_t &train_dataset,
         const label_t &train_labels,
         const dataset_t &test_dataset,
         const label_t &test_labels,
-        const std::vector<hdv::HDV> &idm
+        const std::vector<hdc::HDV> &idm
         ) {
     assert(train_labels.size() == train_dataset.size());
 
-    std::vector<hdv::HDV> am;
-    std::vector<hdv::HDV> queries;
+    std::vector<hdc::HDV> am;
+    std::vector<hdc::HDV> queries;
     int max = *std::max_element(train_labels.begin(), train_labels.end())+1;
-    std::vector<std::vector<hdv::HDV>> encoded(max, std::vector<hdv::HDV>());
+    std::vector<std::vector<hdc::HDV>> encoded(max, std::vector<hdc::HDV>());
 
     // Train
     for (std::size_t i = 0; i < train_labels.size(); i++) {
@@ -146,7 +146,7 @@ std::vector<hdv::HDV> train_am(
     }
 
     for (auto &i : encoded) {
-        hdv::HDV acc = hdv::maj(i);
+        hdc::HDV acc = hdc::maj(i);
         am.emplace_back(acc);
     }
 
@@ -156,11 +156,11 @@ std::vector<hdv::HDV> train_am(
         std::size_t correct = 0;
 
         for (std::size_t i = 0; i < train_dataset.size(); i++) {
-            const hdv::HDV &query = queries[i];
-            int pred_label = hdv::am_search(query, am);
+            const hdc::HDV &query = queries[i];
+            int pred_label = hdc::am_search(query, am);
             if (pred_label != train_labels[i]) {
                 encoded[train_labels[i]].emplace_back(query);
-                encoded[pred_label].emplace_back(hdv::invert(query));
+                encoded[pred_label].emplace_back(hdc::invert(query));
             }
             else {
                 correct++;
@@ -171,7 +171,7 @@ std::vector<hdv::HDV> train_am(
 
         am.clear();
         for (auto &i : encoded) {
-            hdv::HDV acc = hdv::maj(i);
+            hdc::HDV acc = hdc::maj(i);
             am.emplace_back(acc);
         }
 
@@ -191,7 +191,7 @@ std::vector<hdv::HDV> train_am(
 
 int mnist(int argc, char *argv[]) {
     int retrain = 20;
-    hdv::dim_t dim = 10000;
+    hdc::dim_t dim = 10000;
 
     std::cout << "retrain: " << retrain <<
         " D: " << dim << std::endl;
@@ -201,11 +201,11 @@ int mnist(int argc, char *argv[]) {
     dataset_t test_dataset = read_dataset("../dataset/mnist/test_data.bin");
     label_t test_labels = read_labels("../dataset/mnist/test_labels.bin");
 
-    std::vector<hdv::HDV> idm; // ID memory
-    std::vector<hdv::HDV> am; // Associative memory
+    std::vector<hdc::HDV> idm; // ID memory
+    std::vector<hdc::HDV> am; // Associative memory
 
     // Initialize the ID memory with one ID vector to each pixel in the image
-    idm = hdv::init_im(_SIZE_IMG, dim);
+    idm = hdc::init_im(_SIZE_IMG, dim);
 
     am = train_am(retrain,
             train_dataset,

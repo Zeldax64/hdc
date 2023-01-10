@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "voicehd.hpp"
-#include "HDV.hpp"
+#include "hdc.hpp"
 
 typedef std::vector<float> data_t;
 typedef std::vector<data_t> dataset_t;
@@ -76,13 +76,13 @@ int get_amplitude_bin(float amp, int levels) {
     assert(false);
 }
 
-hdv::HDV encode_query(
+hdc::HDV encode_query(
         const int levels,
         const data_t &amplitudes,
-        const std::vector<hdv::HDV> &idm,
-        const std::vector<hdv::HDV> &cim
+        const std::vector<hdc::HDV> &idm,
+        const std::vector<hdc::HDV> &cim
         ) {
-    std::vector<hdv::HDV> vec;
+    std::vector<hdc::HDV> vec;
 
     for (std::size_t i = 0; i < amplitudes.size(); i++) {
         float amp = amplitudes[i];
@@ -90,22 +90,22 @@ hdv::HDV encode_query(
         vec.emplace_back(idm.at(i)*cim.at(amp_bin));
     }
 
-    return hdv::maj(vec);
+    return hdc::maj(vec);
 }
 
 float predict(
         int levels,
         const dataset_t &test_data,
         const label_t &labels,
-        const std::vector<hdv::HDV> &idm,
-        const std::vector<hdv::HDV> &cim,
-        const std::vector<hdv::HDV> &am) {
+        const std::vector<hdc::HDV> &idm,
+        const std::vector<hdc::HDV> &cim,
+        const std::vector<hdc::HDV> &am) {
     assert(labels.size() == test_data.size());
 
     std::size_t correct = 0;
 
     for (std::size_t i = 0; i < test_data.size(); i++) {
-        int pred_label = hdv::am_search(
+        int pred_label = hdc::am_search(
                 encode_query(levels, test_data[i], idm, cim),
                 am);
         if (pred_label == labels[i]) {
@@ -116,22 +116,22 @@ float predict(
     return (float)correct/(float)test_data.size()*100.;
 }
 
-std::vector<hdv::HDV> train_am(
+std::vector<hdc::HDV> train_am(
         int retrain,
         int levels,
         const dataset_t &train_dataset,
         const label_t &train_labels,
         const dataset_t &test_dataset,
         const label_t &test_labels,
-        const std::vector<hdv::HDV> &idm,
-        const std::vector<hdv::HDV> &cim
+        const std::vector<hdc::HDV> &idm,
+        const std::vector<hdc::HDV> &cim
         ) {
     assert(train_labels.size() == train_dataset.size());
 
-    std::vector<hdv::HDV> am;
-    std::vector<hdv::HDV> queries;
+    std::vector<hdc::HDV> am;
+    std::vector<hdc::HDV> queries;
     int max = *std::max_element(train_labels.begin(), train_labels.end())+1;
-    std::vector<std::vector<hdv::HDV>> encoded(max, std::vector<hdv::HDV>());
+    std::vector<std::vector<hdc::HDV>> encoded(max, std::vector<hdc::HDV>());
 
     // Train
     for (std::size_t i = 0; i < train_labels.size(); i++) {
@@ -140,7 +140,7 @@ std::vector<hdv::HDV> train_am(
     }
 
     for (auto &i : encoded) {
-        hdv::HDV acc = hdv::maj(i);
+        hdc::HDV acc = hdc::maj(i);
         am.emplace_back(acc);
     }
 
@@ -150,11 +150,11 @@ std::vector<hdv::HDV> train_am(
         std::size_t correct = 0;
 
         for (std::size_t i = 0; i < train_dataset.size(); i++) {
-            const hdv::HDV &query = queries[i];
-            int pred_label = hdv::am_search(query, am);
+            const hdc::HDV &query = queries[i];
+            int pred_label = hdc::am_search(query, am);
             if (pred_label != train_labels[i]) {
                 encoded[train_labels[i]].emplace_back(query);
-                encoded[pred_label].emplace_back(hdv::invert(query));
+                encoded[pred_label].emplace_back(hdc::invert(query));
             }
             else {
                 correct++;
@@ -165,7 +165,7 @@ std::vector<hdv::HDV> train_am(
 
         am.clear();
         for (auto &i : encoded) {
-            hdv::HDV acc = hdv::maj(i);
+            hdc::HDV acc = hdc::maj(i);
             am.emplace_back(acc);
         }
 
@@ -188,15 +188,15 @@ std::vector<hdv::HDV> train_am(
 int voicehd(int argc, char *argv[]) {
     int retrain = 20;
     int levels = 10;
-    hdv::dim_t dim = 10000;
+    hdc::dim_t dim = 10000;
 
     std::cout << "retrain: " << retrain <<
         " levels: " << levels <<
         " D: " << dim << std::endl;
 
-    std::vector<hdv::HDV> idm; // ID memory
-    std::vector<hdv::HDV> cim; // Continuous item memory
-    std::vector<hdv::HDV> am;  // Associative memory
+    std::vector<hdc::HDV> idm; // ID memory
+    std::vector<hdc::HDV> cim; // Continuous item memory
+    std::vector<hdc::HDV> am;  // Associative memory
 
     dataset_t train_dataset = read_dataset("../dataset/voicehd/train_data.txt");
     label_t train_labels = read_labels("../dataset/voicehd/train_labels.txt");
@@ -205,9 +205,9 @@ int voicehd(int argc, char *argv[]) {
 
     // Initialize the ID memory with 617 entries, one for each frequency bin in
     // the Isolet dataset
-    idm = hdv::init_im(617, dim);
+    idm = hdc::init_im(617, dim);
     // Initialize the continuous item memory
-    cim = hdv::init_cim(levels, idm[0].dim);
+    cim = hdc::init_cim(levels, idm[0].dim);
 
     am = train_am(retrain,
             levels,
