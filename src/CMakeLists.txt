@@ -1,4 +1,6 @@
-add_library(hdc_o OBJECT ${CMAKE_CURRENT_LIST_DIR}/HDV.cpp)
+add_library(hdc_o OBJECT
+    ${CMAKE_CURRENT_LIST_DIR}/HDV.cpp
+    )
 target_include_directories(hdc_o PUBLIC src)
 
 add_executable(language
@@ -9,7 +11,6 @@ target_compile_definitions(language PUBLIC LANGUAGE)
 target_link_libraries(language hdc_o)
 
 add_executable(voicehd
-    ${CMAKE_CURRENT_LIST_DIR}/main.cpp
     ${CMAKE_CURRENT_LIST_DIR}/voicehd.cpp
 )
 target_compile_definitions(voicehd PUBLIC VOICEHD)
