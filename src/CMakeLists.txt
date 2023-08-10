@@ -14,7 +14,7 @@ add_executable(voicehd
     ${CMAKE_CURRENT_LIST_DIR}/voicehd.cpp
 )
 target_compile_definitions(voicehd PUBLIC VOICEHD)
-target_link_libraries(voicehd hdc_o)
+target_link_libraries(voicehd hdc_o argparse)
 
 add_executable(mnist
     ${CMAKE_CURRENT_LIST_DIR}/main.cpp

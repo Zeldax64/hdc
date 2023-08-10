@@ -3,8 +3,11 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
+
+#include <argparse/argparse.hpp>
 
 #include "AssociativeMemory.hpp"
 #include "ContinuousItemMemory.hpp"
@@ -16,7 +19,7 @@ typedef std::vector<float> data_t;
 typedef std::vector<data_t> dataset_t;
 typedef std::vector<int> label_t;
 
-dataset_t read_dataset(const char* path) {
+dataset_t read_dataset(const std::string& path) {
     std::ifstream f(path);
     if (!f.is_open()) {
         std::cerr << "Could not open file: " << path << std::endl;
@@ -41,7 +44,7 @@ dataset_t read_dataset(const char* path) {
     return dataset;
 }
 
-label_t read_labels(const char* path) {
+label_t read_labels(const std::string& path) {
     std::ifstream f(path);
     if (!f.is_open()) {
         std::cerr << "Could not open file: " << path << std::endl;
@@ -204,68 +207,20 @@ hdc::AssociativeMemory<VectorType> train_am(
     return am;
 }
 
-static bool _has_option(const std::vector<std::string>& args, const std::string& opt) {
-    return std::find(args.begin(), args.end(), opt) != args.end();
-}
-
-static bool _parse_uint(const std::vector<std::string>& args, const std::string& opt, std::size_t& ret) {
-    auto it = std::find(args.begin(), args.end(), opt);
-    it++;
-    if (it != args.end()) {
-        ret = std::stoul(*it, 0, 10);
-        return true;
-    }
-
-    return false;
-}
-
-static void _parse_dim(const std::vector<std::string>& args, hdc::dim_t& ret) {
-    if (_has_option(args, "-d")) {
-        _parse_uint(args, "-d", ret);
-    }
-}
-
-static void _parse_retrain(const std::vector<std::string>& args, std::size_t& ret) {
-    if (_has_option(args, "-r")) {
-        _parse_uint(args, "-r", ret);
-    }
-}
-static void _parse_levels(const std::vector<std::string>& args, std::size_t& ret) {
-    if (_has_option(args, "-L")) {
-        _parse_uint(args, "-L", ret);
-    }
-}
-
-static void _parse_hdc_args(
-        const std::vector<std::string>& args,
-        hdc::dim_t& dim,
-        std::size_t& retrain
-        ) {
-    _parse_dim(args, dim);
-    _parse_retrain(args, retrain);
-}
-
 template<typename VectorType>
-int voicehd(int argc, char *argv[]) {
-    std::size_t retrain = 0;
-    std::size_t levels = 10;
-    hdc::dim_t dim = 10000;
-
-    std::vector<std::string> args;
-    if (argc > 1) {
-        args.assign(argv+1, argv+argc);
-        _parse_hdc_args(args, dim, retrain);
-        _parse_levels(args, levels);
-    }
+int voicehd(const argparse::ArgumentParser& args) {
+    std::size_t retrain = args.get<size_t>("--retrain");
+    std::size_t levels = args.get<size_t>("--levels");
+    hdc::dim_t dim = args.get<hdc::dim_t>("--dim");
 
     std::cout << "voicehd: retrain: " << retrain <<
         " levels: " << levels <<
         " D: " << dim << std::endl;
 
-    dataset_t train_dataset = read_dataset("../dataset/voicehd/train_data.txt");
-    label_t train_labels = read_labels("../dataset/voicehd/train_labels.txt");
-    dataset_t test_dataset = read_dataset("../dataset/voicehd/test_data.txt");
-    label_t test_labels = read_labels("../dataset/voicehd/test_labels.txt");
+    dataset_t train_dataset = read_dataset(args.get("train_data"));
+    label_t train_labels = read_labels(args.get("train_labels"));
+    dataset_t test_dataset = read_dataset(args.get("test_data"));
+    label_t test_labels = read_labels(args.get("test_labels"));
 
     auto idm = hdc::ItemMemory<VectorType>(617, dim);
     auto cim = hdc::ContinuousItemMemory<VectorType>(levels, dim);
@@ -285,7 +240,43 @@ int voicehd(int argc, char *argv[]) {
     return 0;
 }
 
+auto parse_args(int argc, char *argv[]) {
+    argparse::ArgumentParser program("VoiceHD");
+    program.add_argument("train_data")
+        .help("Path to the train data.");
+    program.add_argument("train_labels")
+        .help("Path to the train labels.");
+    program.add_argument("test_data")
+        .help("Path to the test data.");
+    program.add_argument("test_labels")
+        .help("Path to the test labels.");
+
+    // Optional arguments
+    program.add_argument("-d", "--dim")
+        .help("Number of dimensions.")
+        .scan<'d', hdc::dim_t>()
+        .default_value<size_t>(1000);
+    program.add_argument("-l", "--levels")
+        .help("Number of levels.")
+        .scan<'d', size_t>()
+        .default_value<size_t>(1000);
+    program.add_argument("-r", "--retrain")
+        .help("Number of retrains.")
+        .scan<'d', size_t>()
+        .default_value<size_t>(0);
+
+    try {
+        program.parse_args(argc, argv);
+    } catch (const std::runtime_error& e) {
+        std::cerr << "Failed to parse arguments! " << e.what() << std::endl;
+        std::cout << program << std::endl;
+    }
+    return program;
+}
+
 int main(int argc, char *argv[]) {
+    auto args = parse_args(argc, argv);
+
     std::cout << "voicehd binary" << std::endl;
-    return voicehd<hdc::bin_t>(argc, argv);
+    return voicehd<hdc::bin_t>(args);
 }

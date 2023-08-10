@@ -1,2 +1,4 @@
 # Catch2 support
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/Catch2)
+add_subdirectory(Catch2)
+
+add_subdirectory(argparse)
