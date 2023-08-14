@@ -1,6 +1,8 @@
 #pragma once
 
 #include <limits>
+#include <fstream>
+
 #include <vector>
 
 #include "types.hpp"
@@ -34,6 +36,23 @@ namespace hdc {
             }
 
             return am_index;
+        }
+
+        void save(const std::string& path) const { this->save(path.c_str()); }
+
+        void save(const char* path) const {
+            std::ofstream output_file(path);
+
+            for (const auto& v : this->_am) {
+                output_file << v << "\n";
+            }
+        }
+
+        void load(const char* path) const {
+            std::ifstream input_file(path);
+
+            input_file << this->size() << "\n";
+            // TODO: Create an approach to load models.
         }
 
     private:

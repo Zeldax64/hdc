@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <iomanip>
 #include <vector>
 
 #include "types.hpp"
@@ -83,6 +84,9 @@ namespace hdc {
                 this->_data[i] *= rhs._data[i];
             }
         }
+
+        auto cbegin() const { return std::cbegin(this->_data); }
+        auto cend() const { return std::cend(this->_data); }
 
     private:
         std::vector<T> _data;
@@ -276,6 +280,9 @@ namespace hdc {
             }
         }
 
+        auto cbegin() const { return std::cbegin(this->_data); }
+        auto cend() const { return std::cend(this->_data); }
+
     private:
         dim_t _dim;
         std::vector<bin_vec_t> _data;
@@ -316,4 +323,14 @@ namespace hdc {
             std::generate(v.begin(), v.end(), rand);
         }
     };
+}
+
+#include <iostream>
+template<typename VectorType>
+std::ostream& operator<<(std::ostream& os, const hdc::Vector<VectorType> v) {
+    for (auto it = v.cbegin(); it != v.cend(); it++) {
+        os << std::hex << std::setw(8) << std::setfill('0') << *it;
+    }
+
+    return os;
 }
