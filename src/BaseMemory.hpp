@@ -2,6 +2,8 @@
 
 
 #include <fstream>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "types.hpp"
@@ -27,6 +29,12 @@ namespace hdc {
 
         void save(const char* path) const {
             std::ofstream output_file(path);
+
+            if (!output_file.is_open()) {
+                std::string msg("Error when opening file: ");
+                msg += path;
+                throw std::runtime_error(msg);
+            }
 
             for (const auto& v : this->_data) {
                 output_file << v << "\n";
