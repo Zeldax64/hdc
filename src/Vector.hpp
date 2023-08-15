@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <cstdlib>
 #include <iomanip>
@@ -33,6 +34,13 @@ namespace hdc {
         return v;
     }
 
+    template<typename T>
+    static void _check_size(const std::vector<T>& a, const std::vector<T>& b) {
+        if (a.size() != b.size()) {
+          throw std::runtime_error("Attempt to perform operation on vectors "
+                                   "with different dimensions.");
+        }
+    }
 
     // Built-in type vectors
     template<typename T>
@@ -179,6 +187,8 @@ namespace hdc {
         dim_t size() const { return this->_dim; }
 
         dim_t hamming(const Vector<bin_vec_t>& rhs) const {
+            _check_size(this->_data, rhs._data);
+
             dim_t res = 0;
             for (int i = 0; i < this->_data.size(); i++) {
                 res += _popcount(this->_data[i] ^ rhs._data[i]);
