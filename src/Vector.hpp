@@ -4,11 +4,35 @@
 #include <cmath>
 #include <cstdlib>
 #include <iomanip>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "types.hpp"
 
 namespace hdc {
+    template<typename T>
+    static std::vector<T> _unhex(const std::string& s) {
+        int bytes = sizeof(T)*2;
+
+        if ((s.size()*2) % bytes) {
+            std::string msg("Failed to create Vector from string. ");
+            msg += "The string is " + std::to_string(s.size()) +
+                   " bytes long and the vector is multiple of " +
+                   std::to_string(bytes) + " bytes";
+            throw std::runtime_error(msg);
+        }
+
+        std::vector<T> v;
+        for (size_t i = 0; i < s.size(); i += bytes) {
+          auto substr = s.substr(i, bytes);
+          T chr_int = std::stol(substr, nullptr, 16);
+          v.push_back(chr_int);
+        }
+
+        return v;
+    }
+
 
     // Built-in type vectors
     template<typename T>
@@ -21,6 +45,9 @@ namespace hdc {
                 this->_fillRandom(this->_data);
             }
         }
+
+        Vector(const std::string& str) { this->_data = _unhex<T>(str); }
+
         virtual ~Vector(){};
 
         dim_t size() const { return this->_data.size(); }
@@ -140,6 +167,13 @@ namespace hdc {
                 this->_fillRandom(this->_data);
             }
         }
+
+        Vector(const std::string& str) {
+            this->_data = _unhex<bin_vec_t>(str);
+            int bits = _sizeof_vec_t();
+            this->_dim = this->_data.size()*bits;
+        }
+
         virtual ~Vector(){};
 
         dim_t size() const { return this->_dim; }

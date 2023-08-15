@@ -1,12 +1,13 @@
 #pragma once
 
-
 #include <fstream>
+#include <filesystem>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 #include "types.hpp"
+#include "Vector.hpp"
 
 namespace hdc {
     template<typename T>
@@ -16,6 +17,8 @@ namespace hdc {
     protected:
         BaseMemory()=default;
         BaseMemory(const std::vector<T>& data) : _data(data) {};
+        BaseMemory(const std::string& path) { this->load(path); };
+        BaseMemory(const char* path) { this->load(path); };
         virtual ~BaseMemory()=default;
 
     public:
@@ -41,11 +44,34 @@ namespace hdc {
             }
         }
 
-        void load(const char* path) const {
+        void load(const std::string& path) { this->load(path.c_str()); }
+        void load(const char* path) {
+            // Check if path is valid and open file
+            if (!std::filesystem::is_regular_file(path)) {
+                std::string msg = ("Given model path is not a file!");
+                msg += " Path: "+ std::string(path);
+                throw std::runtime_error(msg);
+            }
+
             std::ifstream input_file(path);
 
-            input_file << this->size() << "\n";
-            // TODO: Create an approach to load models.
+            if (!input_file.is_open()) {
+                std::string msg("Error when opening file: ");
+                msg += path;
+                throw std::runtime_error(msg);
+            }
+
+            // Parse
+            std::string line;
+            while (!input_file.eof()) {
+                std::getline(input_file, line);
+                // The files should not contain any empty lines
+                if (line.empty()) {
+                    break;
+                }
+                // Create a new hdc::Vector inside _data from the string in line
+                this->_data.emplace_back(line);
+            }
         }
 
 

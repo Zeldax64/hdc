@@ -15,6 +15,8 @@ namespace hdc {
         AssociativeMemory()=default;
         AssociativeMemory(const std::vector<VectorType>& am)
             : BaseMemory<VectorType>::BaseMemory(am) {}
+        AssociativeMemory(const std::string& path) : BaseMemory<VectorType>(path) {};
+        AssociativeMemory(const char* path) : BaseMemory<VectorType>(path) {};
         virtual ~AssociativeMemory()=default;
 
         void clear() { this->_data.clear(); }

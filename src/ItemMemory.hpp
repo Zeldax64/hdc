@@ -17,6 +17,10 @@ namespace hdc {
                 this->_data.emplace_back(T(dim));
             }
         }
+
+        ItemMemory(const std::string& path) : BaseMemory<T>(path) {};
+        ItemMemory(const char* path) : BaseMemory<T>(path) {};
+
         virtual ~ItemMemory()=default;
     };
 }

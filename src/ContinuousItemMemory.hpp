@@ -23,6 +23,10 @@ namespace hdc {
                 index += flips;
             }
         }
+
+        ContinuousItemMemory(const std::string& path) : BaseMemory<T>(path) {};
+        ContinuousItemMemory(const char* path) : BaseMemory<T>(path) {};
+
         virtual ~ContinuousItemMemory()=default;
     };
 }

@@ -2,6 +2,7 @@ add_library(hdc_o OBJECT
     ${CMAKE_CURRENT_LIST_DIR}/HDV.cpp
     )
 target_include_directories(hdc_o PUBLIC src)
+target_compile_features(hdc_o PUBLIC cxx_std_17)
 
 add_executable(language
     ${CMAKE_CURRENT_LIST_DIR}/main.cpp
