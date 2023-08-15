@@ -369,7 +369,6 @@ namespace hdc {
     };
 }
 
-#include <iostream>
 template<typename VectorType>
 std::ostream& operator<<(std::ostream& os, const hdc::Vector<VectorType> v) {
     for (auto it = v.cbegin(); it != v.cend(); it++) {
