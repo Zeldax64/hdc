@@ -84,11 +84,11 @@ int get_amplitude_bin(float amp, std::size_t levels) {
 
 template<typename VectorType>
 VectorType encode_query(
-        const int levels,
         const data_t &amplitudes,
         const hdc::ItemMemory<VectorType> &idm,
         const hdc::ContinuousItemMemory<VectorType> &cim
         ) {
+    int levels = cim.size();
     std::vector<VectorType> vec;
 
     for (std::size_t i = 0; i < amplitudes.size(); i++) {
@@ -103,7 +103,6 @@ VectorType encode_query(
 
 template<typename VectorType>
 float predict(
-        int levels,
         const dataset_t &test_data,
         const label_t &labels,
         const hdc::ItemMemory<VectorType> &idm,
@@ -114,7 +113,7 @@ float predict(
     std::size_t correct = 0;
 
     for (std::size_t i = 0; i < test_data.size(); i++) {
-        auto query = encode_query(levels, test_data[i], idm, cim);
+        auto query = encode_query(test_data[i], idm, cim);
         int pred_label = am.search(query);
         if (pred_label == labels[i]) {
             correct++;
@@ -127,7 +126,6 @@ float predict(
 template<typename VectorType>
 hdc::AssociativeMemory<VectorType> train_am(
         std::size_t retrain,
-        std::size_t levels,
         const dataset_t &train_dataset,
         const label_t &train_labels,
         const dataset_t &test_dataset,
@@ -145,7 +143,7 @@ hdc::AssociativeMemory<VectorType> train_am(
     // Encode the train dataset and store each encoded vector in the
     // class_vectors list
     for (std::size_t i = 0; i < train_labels.size(); i++) {
-        encoded_train.emplace_back(encode_query(levels, train_dataset[i], idm, cim)); // Codifica o train dataset
+        encoded_train.emplace_back(encode_query(train_dataset[i], idm, cim)); // Codifica o train dataset
         class_vectors.at(train_labels[i]).emplace_back(encoded_train[i]); // Cria os class vectors
     }
 
@@ -191,7 +189,7 @@ hdc::AssociativeMemory<VectorType> train_am(
             train_acc = (float)correct/(float)train_dataset.size() * 100.;
 
             // Test accuracy on the test dataset
-            float test_acc = predict(levels,
+            float test_acc = predict(
                     test_dataset,
                     test_labels,
                     idm,
@@ -259,7 +257,6 @@ int voicehd(const argparse::ArgumentParser& args) {
     hdc::AssociativeMemory<VectorType> am;
     if (!args.is_used("--load-model")) {
         am = train_am(retrain,
-                levels,
                 train_dataset,
                 train_labels,
                 test_dataset,
@@ -277,7 +274,7 @@ int voicehd(const argparse::ArgumentParser& args) {
         am  = std::get<2>(ret);
     }
 
-    float accuracy = predict(levels, test_dataset, test_labels, idm, cim, am);
+    float accuracy = predict(test_dataset, test_labels, idm, cim, am);
     std::cout << "Accuracy: " << accuracy << "%" << std::endl;
 
     return 0;
