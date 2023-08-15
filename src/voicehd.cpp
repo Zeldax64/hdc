@@ -5,6 +5,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include <argparse/argparse.hpp>
@@ -207,6 +208,32 @@ hdc::AssociativeMemory<VectorType> train_am(
     return am;
 }
 
+template <typename VectorType>
+void save_model(const argparse::ArgumentParser &args,
+                const hdc::ItemMemory<VectorType> &idm,
+                const hdc::ContinuousItemMemory<VectorType> &cim,
+                const hdc::AssociativeMemory<VectorType> &am) {
+    auto path = args.get("--save-model");
+    idm.save(path+"/./im.txt");
+    cim.save(path+"/./cim.txt");
+    am.save(path+"/./am.txt");
+}
+
+template <typename VectorType>
+std::tuple<
+        hdc::ItemMemory<VectorType>,
+        hdc::ContinuousItemMemory<VectorType>,
+        hdc::AssociativeMemory<VectorType>
+    >
+load_model(const argparse::ArgumentParser &args) {
+    auto path = args.get("--load-model");
+    hdc::ItemMemory<VectorType> idm(path+"/./im.txt");
+    hdc::ContinuousItemMemory<VectorType> cim(path+"/./cim.txt");
+    hdc::AssociativeMemory<VectorType> am(path+"/./am.txt");
+
+    return {idm, cim, am};
+}
+
 template<typename VectorType>
 int voicehd(const argparse::ArgumentParser& args) {
     std::size_t retrain = args.get<size_t>("--retrain");
@@ -217,22 +244,38 @@ int voicehd(const argparse::ArgumentParser& args) {
         " levels: " << levels <<
         " D: " << dim << std::endl;
 
-    dataset_t train_dataset = read_dataset(args.get("train_data"));
-    label_t train_labels = read_labels(args.get("train_labels"));
-    dataset_t test_dataset = read_dataset(args.get("test_data"));
-    label_t test_labels = read_labels(args.get("test_labels"));
+    dataset_t train_dataset;
+    label_t train_labels;
+    if (!args.is_used("--load-model")) {
+        train_dataset = read_dataset(args.get("train_data"));
+        train_labels = read_labels(args.get("train_labels"));
+    }
+    auto test_dataset = read_dataset(args.get("test_data"));
+    auto test_labels = read_labels(args.get("test_labels"));
 
     auto idm = hdc::ItemMemory<VectorType>(617, dim);
     auto cim = hdc::ContinuousItemMemory<VectorType>(levels, dim);
 
-    auto am = train_am(retrain,
-            levels,
-            train_dataset,
-            train_labels,
-            test_dataset,
-            test_labels,
-            idm,
-            cim);
+    hdc::AssociativeMemory<VectorType> am;
+    if (!args.is_used("--load-model")) {
+        am = train_am(retrain,
+                levels,
+                train_dataset,
+                train_labels,
+                test_dataset,
+                test_labels,
+                idm,
+                cim);
+        if (args.is_used("--save-model")) {
+            save_model(args, idm, cim, am);
+        }
+    }
+    else {
+        auto ret = load_model<VectorType>(args);
+        idm = std::get<0>(ret);
+        cim = std::get<1>(ret);
+        am  = std::get<2>(ret);
+    }
 
     float accuracy = predict(levels, test_dataset, test_labels, idm, cim, am);
     std::cout << "Accuracy: " << accuracy << "%" << std::endl;
@@ -240,7 +283,7 @@ int voicehd(const argparse::ArgumentParser& args) {
     return 0;
 }
 
-auto parse_args(int argc, char *argv[]) {
+auto add_args() {
     argparse::ArgumentParser program("VoiceHD");
     program.add_argument("train_data")
         .help("Path to the train data.");
@@ -265,17 +308,29 @@ auto parse_args(int argc, char *argv[]) {
         .scan<'d', size_t>()
         .default_value<size_t>(0);
 
-    try {
-        program.parse_args(argc, argv);
-    } catch (const std::runtime_error& e) {
-        std::cerr << "Failed to parse arguments! " << e.what() << std::endl;
-        std::cout << program << std::endl;
-    }
+    program.add_argument("--load-model")
+        .help("Load model from path and only execute the test stage. The path "
+              "given must be of a directory containing the data for the IM, "
+              "CIM, and AM.");
+    program.add_argument("--save-model")
+        .help("Write all used memories to the given path. The files are "
+              "created according to the name of the memory. ItemMemory is "
+              "saved as im.txt, ContinuousItemMemory as cim.txt, and "
+              "AssociativeMemory as am.txt");
+
     return program;
 }
 
 int main(int argc, char *argv[]) {
-    auto args = parse_args(argc, argv);
+    argparse::ArgumentParser args;
+    try {
+        args = add_args();
+        args.parse_args(argc, argv);
+    } catch (const std::runtime_error& e) {
+        std::cout << args << std::endl;
+        std::cerr << "Failed to parse arguments! " << e.what() << std::endl;
+        return -1;
+    }
 
     std::cout << "voicehd binary" << std::endl;
     return voicehd<hdc::bin_t>(args);
