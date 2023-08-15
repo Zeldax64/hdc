@@ -314,6 +314,11 @@ auto add_args(argparse::ArgumentParser& program) {
               "saved as im.txt, ContinuousItemMemory as cim.txt, and "
               "AssociativeMemory as am.txt");
 
+    program.add_argument("--hdc").
+        help("Choose the HDC type used between supported options. Values "
+             "accepted: {bin, int}.")
+        .default_value("bin");
+
     return program;
 }
 
@@ -329,6 +334,13 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    std::cout << "voicehd binary" << std::endl;
-    return voicehd<hdc::bin_t>(args);
+    std::string&& hdc = args.get("hdc");
+
+    if (hdc == "bin") {
+        std::cout << "voicehd binary" << std::endl;
+        return voicehd<hdc::bin_t>(args);
+    } else if (hdc == "int") {
+        std::cout << "voicehd int" << std::endl;
+        return voicehd<hdc::int32_t>(args);
+    }
 }
