@@ -280,8 +280,7 @@ int voicehd(const argparse::ArgumentParser& args) {
     return 0;
 }
 
-auto add_args() {
-    argparse::ArgumentParser program("VoiceHD");
+auto add_args(argparse::ArgumentParser& program) {
     program.add_argument("train_data")
         .help("Path to the train data.");
     program.add_argument("train_labels")
@@ -319,9 +318,10 @@ auto add_args() {
 }
 
 int main(int argc, char *argv[]) {
-    argparse::ArgumentParser args;
+    argparse::ArgumentParser args("VoiceHD");
+
     try {
-        args = add_args();
+        add_args(args);
         args.parse_args(argc, argv);
     } catch (const std::runtime_error& e) {
         std::cout << args << std::endl;
