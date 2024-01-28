@@ -13,6 +13,7 @@
 #include "AssociativeMemory.hpp"
 #include "ContinuousItemMemory.hpp"
 #include "ItemMemory.hpp"
+#include "common_args.hpp"
 #include "types.hpp"
 #include "hdc.hpp"
 
@@ -291,18 +292,11 @@ auto add_args(argparse::ArgumentParser& program) {
         .help("Path to the test labels.");
 
     // Optional arguments
-    program.add_argument("-d", "--dim")
-        .help("Number of dimensions.")
-        .scan<'d', hdc::dim_t>()
-        .default_value<size_t>(1000);
+    common_args::add_args(program);
     program.add_argument("-l", "--levels")
         .help("Number of levels.")
         .scan<'d', size_t>()
-        .default_value<size_t>(1000);
-    program.add_argument("-r", "--retrain")
-        .help("Number of retrains.")
-        .scan<'d', size_t>()
-        .default_value<size_t>(0);
+        .default_value<size_t>(10);
 
     program.add_argument("--load-model")
         .help("Load model from path and only execute the test stage. The path "
@@ -313,11 +307,6 @@ auto add_args(argparse::ArgumentParser& program) {
               "created according to the name of the memory. ItemMemory is "
               "saved as im.txt, ContinuousItemMemory as cim.txt, and "
               "AssociativeMemory as am.txt");
-
-    program.add_argument("--hdc").
-        help("Choose the HDC type used between supported options. Values "
-             "accepted: {bin, int}.")
-        .default_value("bin");
 
     return program;
 }
