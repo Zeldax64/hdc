@@ -5,11 +5,15 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
-#include <sstream>
+#include <stdexcept>
 #include <vector>
 
-#include "mnist.hpp"
+#include <argparse/argparse.hpp>
+
+#include "AssociativeMemory.hpp"
+#include "ItemMemory.hpp"
 #include "hdc.hpp"
+#include "common_args.hpp"
 
 // Each image contains 28x28 (784) pixels
 const std::size_t _SIZE_IMG = 784;
@@ -18,7 +22,7 @@ typedef std::vector<std::uint8_t> data_t;
 typedef std::vector<data_t> dataset_t;
 typedef std::vector<std::uint8_t> label_t;
 
-dataset_t read_dataset(const char* path) {
+dataset_t read_dataset(const std::string& path) {
     std::ifstream f(path, std::ios::ate | std::ios::binary);
     if (!f.is_open()) {
         std::cerr << "Could not open file: " << path << std::endl;
@@ -59,7 +63,7 @@ dataset_t read_dataset(const char* path) {
     return dataset;
 }
 
-label_t read_labels(const char* path) {
+label_t read_labels(const std::string& path) {
     std::ifstream f(path, std::ios::ate | std::ios::binary);
     if (!f.is_open()) {
         std::cerr << "Could not open file: " << path << std::endl;
@@ -85,37 +89,39 @@ label_t read_labels(const char* path) {
     return labels;
 }
 
-hdc::HDV encode_query(
+template<typename VectorType>
+VectorType encode_query(
         const data_t &pixels,
-        const std::vector<hdc::HDV> &idm
+        const hdc::ItemMemory<VectorType> &idm
         ) {
-    std::vector<hdc::HDV> vec;
+    std::vector<VectorType> vec;
 
     for (std::size_t i = 0; i < pixels.size(); i++) {
-        hdc::HDV p_vec = idm.at(i);
+        auto p_vec = idm.at(i);
         // Bitshift black pixels
         if (!pixels[i]) {
-            p_vec.p();
+            p_vec = hdc::p(p_vec);
         }
         vec.emplace_back(p_vec);
     }
 
-    return hdc::maj(vec);
+    return hdc::add(vec);
 }
 
+template<typename VectorType>
 float predict(
         const dataset_t &test_data,
         const label_t &labels,
-        const std::vector<hdc::HDV> &idm,
-        const std::vector<hdc::HDV> &am) {
+        const hdc::ItemMemory<VectorType> &idm,
+        const hdc::AssociativeMemory<VectorType> &am) {
     assert(labels.size() == test_data.size());
 
     std::size_t correct = 0;
 
     for (std::size_t i = 0; i < test_data.size(); i++) {
-        int pred_label = hdc::am_search(
-                encode_query(test_data[i], idm),
-                am);
+        int pred_label = am.search(
+                encode_query(test_data[i], idm)
+                );
         if (pred_label == labels[i]) {
             correct++;
         }
@@ -124,90 +130,107 @@ float predict(
     return (float)correct/(float)test_data.size()*100.;
 }
 
-std::vector<hdc::HDV> train_am(
+template<typename VectorType>
+hdc::AssociativeMemory<VectorType> train_am(
         int retrain,
         const dataset_t &train_dataset,
         const label_t &train_labels,
         const dataset_t &test_dataset,
         const label_t &test_labels,
-        const std::vector<hdc::HDV> &idm
+        const hdc::ItemMemory<VectorType> &idm
         ) {
-    assert(train_labels.size() == train_dataset.size());
-
-    std::vector<hdc::HDV> am;
-    std::vector<hdc::HDV> queries;
-    int max = *std::max_element(train_labels.begin(), train_labels.end())+1;
-    std::vector<std::vector<hdc::HDV>> encoded(max, std::vector<hdc::HDV>());
-
-    // Train
-    for (std::size_t i = 0; i < train_labels.size(); i++) {
-        queries.emplace_back(encode_query(train_dataset[i], idm));
-        encoded.at(train_labels[i]).emplace_back(queries[i]);
+    if (train_labels.size() != train_dataset.size()) {
+        throw std::runtime_error("Attempt to train AM using incompatible train and label datasets.");
     }
 
-    for (auto &i : encoded) {
-        hdc::HDV acc = hdc::maj(i);
+    std::vector<VectorType> encoded_train; // Container of encoded vectors from the train dataset
+    // Container of vectors belonging to a label (or class)
+    int max = *std::max_element(train_labels.begin(), train_labels.end())+1;
+    std::vector<std::vector<VectorType>> class_vectors(max, std::vector<VectorType>());
+
+    // Encode the train dataset and store each encoded vector in the
+    // class_vectors list
+    for (std::size_t i = 0; i < train_labels.size(); i++) {
+        encoded_train.emplace_back(encode_query(train_dataset[i], idm)); // Codifica o train dataset
+        class_vectors.at(train_labels[i]).emplace_back(encoded_train[i]); // Cria os class vectors
+    }
+
+    // Create AM
+    auto am = hdc::AssociativeMemory<VectorType>();
+    for (auto &i : class_vectors) {
+        VectorType acc = hdc::add(i);
         am.emplace_back(acc);
     }
 
     // Retraining
     for (int times = 0; times < retrain; times++) {
-        float train_acc = -1.0;
-        std::size_t correct = 0;
-
-        for (std::size_t i = 0; i < train_dataset.size(); i++) {
-            const hdc::HDV &query = queries[i];
-            int pred_label = hdc::am_search(query, am);
-            if (pred_label != train_labels[i]) {
-                encoded[train_labels[i]].emplace_back(query);
-                encoded[pred_label].emplace_back(hdc::invert(query));
-            }
-            else {
-                correct++;
+        // Recreate AM only if it is not the first training time
+        if (times > 0) {
+            am.clear();
+            for (auto &i : class_vectors) {
+                VectorType acc = hdc::add(i);
+                am.emplace_back(acc);
             }
         }
 
-        train_acc = (float)correct/(float)train_dataset.size() * 100.;
+        // Do we have another retraining round? If so, then lets predict with
+        // the train dataset and retrain the class vectors
+        if (times < retrain) {
+            float train_acc = -1.0;
+            std::size_t correct = 0;
 
-        am.clear();
-        for (auto &i : encoded) {
-            hdc::HDV acc = hdc::maj(i);
-            am.emplace_back(acc);
+            // Retrain the class vectors while predicting on the train dataset
+            for (std::size_t i = 0; i < train_dataset.size(); i++) {
+                const VectorType &query = encoded_train[i];
+                int pred_label = am.search(query);
+                if (pred_label != train_labels[i]) {
+                    class_vectors[train_labels[i]].emplace_back(query);
+                    auto inverted_query = query;
+                    inverted_query.invert();
+                    class_vectors[pred_label].emplace_back(inverted_query);
+                }
+                else {
+                    correct++;
+                }
+            }
+
+            train_acc = (float)correct/(float)train_dataset.size() * 100.;
+
+            // Test accuracy on the test dataset
+            float test_acc = predict(
+                    test_dataset,
+                    test_labels,
+                    idm,
+                    am);
+
+            std::cout << "Iteration: " << times <<
+                " Accuracy on train dataset: " << train_acc <<
+                " Accuracy on test dataset: " << test_acc << std::endl;
         }
 
-        float test_acc = predict(
-                test_dataset,
-                test_labels,
-                idm,
-                am);
-
-        std::cout << "Iteration: " << times <<
-            " Accuracy on train dataset: " << train_acc <<
-            " Accuracy on test dataset: " << test_acc << std::endl;
     }
 
     return am;
 }
 
-int mnist(int argc, char *argv[]) {
-    int retrain = 20;
-    hdc::dim_t dim = 10000;
+template<typename VectorType>
+int mnist(const argparse::ArgumentParser& args) {
+    int retrain = args.get<size_t>("--retrain");
+    hdc::dim_t dim = args.get<size_t>("--dim");
 
     std::cout << "retrain: " << retrain <<
         " D: " << dim << std::endl;
 
-    dataset_t train_dataset = read_dataset("../dataset/mnist/train_data.bin");
-    label_t train_labels = read_labels("../dataset/mnist/train_labels.bin");
-    dataset_t test_dataset = read_dataset("../dataset/mnist/test_data.bin");
-    label_t test_labels = read_labels("../dataset/mnist/test_labels.bin");
+    auto train_dataset = read_dataset(args.get("train_data"));
+    auto train_labels = read_labels(args.get("train_labels"));
+    auto test_dataset = read_dataset(args.get("test_data"));
+    auto test_labels = read_labels(args.get("test_labels"));
 
-    std::vector<hdc::HDV> idm; // ID memory
-    std::vector<hdc::HDV> am; // Associative memory
+    hdc::ItemMemory<VectorType> idm(_SIZE_IMG, dim); // ID memory
+    //std::vector<hdc::HDV> am; // Associative memory
 
-    // Initialize the ID memory with one ID vector to each pixel in the image
-    idm = hdc::init_im(_SIZE_IMG, dim);
-
-    am = train_am(retrain,
+    auto am = train_am(
+            retrain,
             train_dataset,
             train_labels,
             test_dataset,
@@ -219,3 +242,56 @@ int mnist(int argc, char *argv[]) {
 
     return 0;
 }
+
+auto add_args(argparse::ArgumentParser& program) {
+    program.add_argument("train_data")
+        .help("Path to the train data.");
+    program.add_argument("train_labels")
+        .help("Path to the train labels.");
+    program.add_argument("test_data")
+        .help("Path to the test data.");
+    program.add_argument("test_labels")
+        .help("Path to the test labels.");
+
+    // Optional arguments
+    common_args::add_args(program);
+
+    //program.add_argument("--load-model")
+    //    .help("Load model from path and only execute the test stage. The path "
+    //          "given must be of a directory containing the data for the IM, "
+    //          "CIM, and AM.");
+    //program.add_argument("--save-model")
+    //    .help("Write all used memories to the given path. The files are "
+    //          "created according to the name of the memory. ItemMemory is "
+    //          "saved as im.txt, ContinuousItemMemory as cim.txt, and "
+    //          "AssociativeMemory as am.txt");
+
+    return program;
+}
+
+int main(int argc, char *argv[]) {
+    argparse::ArgumentParser args("MNIST");
+
+    try {
+        add_args(args);
+        args.parse_args(argc, argv);
+    } catch (const std::runtime_error& e) {
+        std::cout << args << std::endl;
+        std::cerr << "Failed to parse arguments! " << e.what() << std::endl;
+        return -1;
+    }
+
+    auto hdc = args.get("hdc");
+
+    if (hdc == "bin") {
+        std::cout << "mnist binary" << std::endl;
+        return mnist<hdc::bin_t>(args);
+    } else if (hdc == "int") {
+        std::cout << "mnist int" << std::endl;
+        return mnist<hdc::int32_t>(args);
+    } else if (hdc == "float") {
+        std::cout << "mnist float" << std::endl;
+        return mnist<hdc::float_t>(args);
+    }
+}
+
