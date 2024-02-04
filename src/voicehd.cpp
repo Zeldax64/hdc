@@ -331,5 +331,8 @@ int main(int argc, char *argv[]) {
     } else if (hdc == "int") {
         std::cout << "voicehd int" << std::endl;
         return voicehd<hdc::int32_t>(args);
+    } else if (hdc == "float") {
+        std::cout << "voicehd float" << std::endl;
+        return  voicehd<hdc::float_t>(args);
     }
 }
