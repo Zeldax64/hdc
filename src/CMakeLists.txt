@@ -5,11 +5,10 @@ target_include_directories(hdc_o PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 target_compile_features(hdc_o PUBLIC cxx_std_17)
 
 add_executable(language
-    main.cpp
     language.cpp
 )
 target_compile_definitions(language PUBLIC LANGUAGE)
-target_link_libraries(language hdc_o)
+target_link_libraries(language hdc_o argparse)
 
 add_executable(voicehd
     voicehd.cpp

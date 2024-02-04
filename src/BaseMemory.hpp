@@ -24,8 +24,9 @@ namespace hdc {
     public:
         std::size_t size() const { return this->_data.size(); }
 
-        const T at(std::size_t pos) const {
-            return this->_data.at(pos);
+        const T at(std::size_t pos) const { return this->_data.at(pos); };
+        const auto& back() const {
+          return this->_data.back();
         };
 
         void save(const std::string& path) const { this->save(path.c_str()); }
