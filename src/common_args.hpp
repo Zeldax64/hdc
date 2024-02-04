@@ -1,3 +1,5 @@
+#pragma once
+
 #include <argparse/argparse.hpp>
 
 #include "hdc.hpp"
@@ -16,7 +18,7 @@ namespace common_args {
 
         program.add_argument("--hdc").
             help("Choose the HDC type used between supported options. Values "
-                 "accepted: {bin, int}.")
+                 "accepted: {bin, int, float}.")
             .default_value("bin");
     }
 }
