@@ -84,7 +84,7 @@ namespace hdc {
     }
 
     template<typename T>
-    T p(const T& v1, std::uint32_t times) {
+    T p(const T& v1, std::uint32_t times=1) {
         T res(v1);
         res.p(times);
         return res;
