@@ -132,8 +132,8 @@ namespace hdc {
             float dot_product = 0.0;
 
             for (auto i = 0; i < this->_data.size(); i++) {
-                auto a = this->_data[i];
-                auto b = v._data[i];
+                float a = this->_data[i];
+                float b = v._data[i];
                 dot_product += a*b;
                 magnitude_a += a*a;
                 magnitude_b += b*b;
