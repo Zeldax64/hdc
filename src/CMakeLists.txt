@@ -23,9 +23,8 @@ target_compile_definitions(mnist PUBLIC MNIST)
 target_link_libraries(mnist hdc_o argparse)
 
 add_executable(emg
-    main.cpp
     emg.cpp
     common.cpp
 )
 target_compile_definitions(emg PUBLIC EMG)
-target_link_libraries(emg hdc_o)
+target_link_libraries(emg hdc_o argparse)

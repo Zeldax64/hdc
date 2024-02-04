@@ -1,16 +1,26 @@
+/*
+ * EMG implementation based on the paper "Hyperdimensional biosignal processing:
+ * A case study for EMG-based hand gesture recognition" available at
+ * https://github.com/abbas-rahimi/HDC-EMG
+ */
+
 #include <array>
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstring>
-#include <fstream>
 #include <iostream>
-#include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
-#include "emg.hpp"
+#include <argparse/argparse.hpp>
+
+#include "AssociativeMemory.hpp"
+#include "ContinuousItemMemory.hpp"
+#include "ItemMemory.hpp"
 #include "common.hpp"
+#include "common_args.hpp"
 #include "hdc.hpp"
 
 typedef double data_entry_t;
@@ -172,16 +182,17 @@ int get_amplitude_bin(float amp, int levels) {
     return -1;
 }
 
-hdc::HDV encode_query(
+template<typename VectorType>
+VectorType encode_query(
         int levels,
         int N_grams,
         std::size_t entry,
         const dataset_t &dataset,
-        const std::vector<hdc::HDV> &idm,
-        const std::vector<hdc::HDV> &cim
+        const hdc::ItemMemory<VectorType> &idm,
+        const hdc::ContinuousItemMemory<VectorType> &cim
         ) {
-    std::vector<hdc::HDV> spatial;
-    std::vector<hdc::HDV> temporal;
+    std::vector<VectorType> spatial;
+    std::vector<VectorType> temporal;
 
     for (int i = 0; i < N_grams; i++) {
         const data_t &channels = dataset.at(entry+i);
@@ -189,40 +200,40 @@ hdc::HDV encode_query(
         for (std::size_t c = 0; c < channels.size(); c++) {
             auto &amp = channels[c];
             int amp_bin = get_amplitude_bin(amp, levels);
-            spatial.emplace_back(idm.at(c)*cim.at(amp_bin));
+            spatial.emplace_back(hdc::mul(idm.at(c), cim.at(amp_bin)));
         }
 
         if (g_encode == TEMPORAL) {
-            hdc::HDV t = hdc::maj(spatial);
+            auto t = hdc::add(spatial);
             t.p(i);
             temporal.emplace_back(t);
         }
     }
 
     if (g_encode == SPATIAL) {
-        return hdc::maj(spatial);
+        return hdc::add(spatial);
     }
     else {
         return hdc::mul(temporal);
     }
 }
 
+template<typename VectorType>
 float predict(
         int levels,
         int N_grams,
         const dataset_t &test_data,
         const label_t &labels,
-        const std::vector<hdc::HDV> &idm,
-        const std::vector<hdc::HDV> &cim,
-        const std::vector<hdc::HDV> &am) {
+        const hdc::ItemMemory<VectorType> &idm,
+        const hdc::ContinuousItemMemory<VectorType> &cim,
+        const hdc::AssociativeMemory<VectorType> &am) {
     assert(labels.size() == test_data.size());
 
     std::size_t correct = 0;
 
     for (std::size_t i = 0; i+N_grams-1 < test_data.size(); i++) {
-        int pred_label = hdc::am_search(
-                encode_query(levels, N_grams, i, test_data, idm, cim),
-                am);
+        auto query = encode_query(levels, N_grams, i, test_data, idm, cim);
+        int pred_label = am.search(query);
         // Adjust the predicted label value since the labels dataset use values
         // between 1 <-> 5
         pred_label++;
@@ -234,41 +245,43 @@ float predict(
     return (float)correct/(float)test_data.size()*100.;
 }
 
-std::vector<hdc::HDV> train_am(
+template<typename VectorType>
+hdc::AssociativeMemory<VectorType> train_am(
         int levels,
         int N,
         const dataset_t &train_dataset,
         const label_t &train_labels,
         const dataset_t &test_dataset,
         const label_t &test_labels,
-        const std::vector<hdc::HDV> &idm,
-        const std::vector<hdc::HDV> &cim
+        const hdc::ItemMemory<VectorType> &idm,
+        const hdc::ContinuousItemMemory<VectorType> &cim
         ) {
-    std::vector<hdc::HDV> am;
-    std::vector<hdc::HDV> encoded;
+    hdc::AssociativeMemory<VectorType> am;
+    std::vector<VectorType> encoded;
 
     int min = *std::min_element(train_labels.begin(), train_labels.end());
     label_entry_t label = min;
 
     for (std::size_t i = 0; i+N-1 < train_labels.size(); i++) {
         if (label != train_labels[i]) {
-            am.emplace_back(hdc::maj(encoded));
+            am.emplace_back(hdc::add(encoded));
             encoded.clear();
             label = train_labels[i];
         }
 
         if (train_labels[i] == train_labels[i+N-1]) {
-            hdc::HDV enc = encode_query(levels, N, i, train_dataset, idm, cim);
+            auto enc = encode_query(levels, N, i, train_dataset, idm, cim);
             encoded.emplace_back(enc);
         }
     }
 
     // Append last value
-    am.emplace_back(hdc::maj(encoded));
+    am.emplace_back(hdc::add(encoded));
 
     return am;
 }
 
+template<typename VectorType>
 int predict_window_max(
         int levels,
         int N_grams,
@@ -276,24 +289,24 @@ int predict_window_max(
         std::size_t stop,
         const dataset_t &dataset,
         const label_t &labels,
-        const std::vector<hdc::HDV> &idm,
-        const std::vector<hdc::HDV> &cim,
-        const std::vector<hdc::HDV> &am) {
-    std::vector<hdc::HDV> encoded;
+        const hdc::ItemMemory<VectorType> &idm,
+        const hdc::ContinuousItemMemory<VectorType> &cim,
+        const hdc::AssociativeMemory<VectorType> &am) {
+    std::vector<VectorType> encoded;
 
-    // TODO: dado um começo e um final, predizer quem está correto dentro da
+    // Given a start and an end, predict which is the most probable class in the
     // window
     for (int i = start; i < stop; i++) {
-        hdc::HDV enc = encode_query(levels, N_grams, i, dataset, idm, cim);
+        auto enc = encode_query(levels, N_grams, i, dataset, idm, cim);
         encoded.emplace_back(enc);
     }
 
     // Search for the vector with highest similarity
     int index = 0;
-    hdc::dim_t min_dist = encoded.at(0).dim;
+    float min_dist = 1.0;
     for (const auto &v : encoded) {
         for (int i = 0; i < am.size(); i++) {
-            hdc::dim_t dist = hdc::dist(v, am[i]);
+            float dist = v.dist(am.at(i));
 
             if (dist < min_dist) {
                 min_dist = dist;
@@ -305,16 +318,17 @@ int predict_window_max(
     return index;
 }
 
+template<typename VectorType>
 float test_slicing(
         int levels,
         int N_grams,
         const dataset_t &dataset,
         const label_t &labels,
-        const std::vector<hdc::HDV> &idm,
-        const std::vector<hdc::HDV> &cim,
-        const std::vector<hdc::HDV> &am) {
+        const hdc::ItemMemory<VectorType> &idm,
+        const hdc::ContinuousItemMemory<VectorType> &cim,
+        const hdc::AssociativeMemory<VectorType> &am) {
     // This function is a simplified version of the same function
-    // available in Imani's matlab script since it does not consider
+    // available in Rahimi's matlab script since it does not consider
     // overlapping windows
 
     // Find the min label value used
@@ -358,7 +372,7 @@ float test_slicing(
         }
         else {
             // Unreachable condition
-            assert(false);
+            throw std::runtime_error("Unreachable condition in test_slicing()");
         }
     }
 
@@ -366,11 +380,13 @@ float test_slicing(
 }
 
 // Main //
-int emg(int argc, char *argv[]) {
+template<typename VectorType>
+int emg(const argparse::ArgumentParser &args) {
+    std::string dataset_dir = args.get<std::string>("dataset");
     const int CHANNELS = 4;
 
-    hdc::dim_t dim = 10000;
-    int levels = 21;
+    hdc::dim_t dim = args.get<size_t>("--dim");
+    size_t levels = args.get<size_t>("--levels");
     g_encode = SPATIAL;
     int N_grams = 4;
     float training_frac = 0.25;
@@ -392,15 +408,8 @@ int emg(int argc, char *argv[]) {
     //    " Training Fraction: " << training_frac * 100.0 << "%" <<
     //    " Downsample: " << downsample_rate << std::endl;
 
-    std::vector<hdc::HDV> idm; // ID memory
-    std::vector<hdc::HDV> cim; // Continuous item memory
-    std::vector<hdc::HDV> am;  // Associative memory
-
-    // Initialize the ID memory with 4 entries, one for each channel used in
-    // the dataset
-    idm = hdc::init_im(CHANNELS, dim);
-    // Initialize the continuous item memory
-    cim = hdc::init_cim(levels, dim);
+    hdc::ItemMemory<VectorType> idm(CHANNELS, dim);
+    hdc::ContinuousItemMemory<VectorType> cim(levels, dim);
 
     // Dataset variables
     std::vector<dataset_t> complete;
@@ -433,8 +442,8 @@ int emg(int argc, char *argv[]) {
     for (int i = 1; i <= _SUBJECTS; i++) {
         // Read datasets
         std::string num_str = std::to_string(i);
-        std::string d_path = "../dataset/emg/complete"+num_str+".bin";
-        std::string l_path = "../dataset/emg/labels"+num_str+".bin";
+        std::string d_path = dataset_dir+"/complete"+num_str+".bin";
+        std::string l_path = dataset_dir+"/labels"+num_str+".bin";
         complete.emplace_back(read_dataset(d_path.c_str()));
         labels.emplace_back(read_labels(l_path.c_str()));
     }
@@ -459,7 +468,7 @@ int emg(int argc, char *argv[]) {
 
         float accuracy;
 
-        am = train_am(
+        auto am = train_am(
                 levels,
                 N_grams,
                 train_complete[i],
@@ -522,7 +531,7 @@ int emg(int argc, char *argv[]) {
 
         float accuracy;
 
-        am = train_am(
+        auto am = train_am(
                 levels,
                 N_grams,
                 train_complete[i],
@@ -547,3 +556,45 @@ int emg(int argc, char *argv[]) {
 
     return 0;
 }
+
+auto add_args(argparse::ArgumentParser& program) {
+    program.add_argument("dataset")
+        .help("Path to the dataset dir.");
+
+    // Optional arguments
+    common_args::add_args(program);
+    program.add_argument("-l", "--levels")
+        .help("Number of levels.")
+        .scan<'d', size_t>()
+        .default_value<size_t>(10);
+
+    return program;
+}
+
+
+int main(int argc, char *argv[]) {
+    argparse::ArgumentParser args("EMG");
+
+    try {
+        add_args(args);
+        args.parse_args(argc, argv);
+    } catch (const std::runtime_error& e) {
+        std::cout << args << std::endl;
+        std::cerr << "Failed to parse arguments! " << e.what() << std::endl;
+        return -1;
+    }
+
+    auto hdc = args.get("hdc");
+
+    if (hdc == "bin") {
+        std::cout << "emg binary" << std::endl;
+        return emg<hdc::bin_t>(args);
+    } else if (hdc == "int") {
+        std::cout << "emg int" << std::endl;
+        return emg<hdc::int32_t>(args);
+    } else if (hdc == "float") {
+        std::cout << "emg float" << std::endl;
+        return emg<hdc::float_t>(args);
+    }
+}
+
