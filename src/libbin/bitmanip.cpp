@@ -102,4 +102,112 @@ namespace bitmanip {
         _accumulate_unpacked_gen(val, acc);
 #endif
     }
+
+    uint32_t _threshold_pack_gen(const std::array<uint32_t, 32>& acc, uint32_t threshold) {
+        // Write the result's vector bit_group
+        uint32_t word = 0;
+        //constexpr int pack_size = acc.size();
+        constexpr int pack_size = 32;
+        for (std::size_t pos = 0; pos < pack_size; pos++) {
+            // Decide the bit majority of the accumulator entries
+            uint32_t bit = acc[pack_size-pos-1] > threshold;
+            // Set bit
+            word <<= 1;
+            word |= bit;
+        }
+
+        return word;
+    }
+
+    uint32_t _threshold_pack_asm(const std::array<uint32_t, 32>& acc, uint32_t threshold) {
+        constexpr int acc_size = 32;
+        auto acc_ptr = (__m256i*) acc.data();
+
+        constexpr int simd_size = sizeof(__m256i);
+        constexpr int element_size = sizeof(decltype(*std::begin(acc)));
+        constexpr int simd_elements = simd_size/element_size;
+        std::array<uint32_t, simd_elements> avx_buffer;
+        std::size_t loops = acc_size / simd_elements;
+
+        // Hold the thresholded values. Each entry is either 32-bit 0xFFF...F or
+        // 0x0.
+        std::array<uint32_t, 32> threshold_buffer;
+        auto threshold_buffer_ptr = (__m256i*) threshold_buffer.data();
+
+        __m256i avx_threshold = _mm256_set1_epi32(threshold);
+        auto buffer_ptr = (__m256i*) avx_buffer.data();
+        uint64_t packed_word = 0;
+
+        // Considering an AVX-256 register with 32-bit lanes. This shuffle mask
+        // groups each LSB byte of each 32-bit word in the lowest word of
+        // 128-bit lanes.
+        // Example:
+        // --- 128b --- --- 128b ---
+        // L7|L6|L5|L4||L3|L2|L1|L0
+        //           V           V
+        // X|X|X|L7L6L5L4||X|X|X|L3L2L1L0
+        // The "X" in the other lanes represent "don't care".
+        constexpr int8_t shuffle_mask_data[32] = {
+        // Lower 128 bits
+             0,  4,  8, 12,
+            -1, -1, -1, -1,
+            -1, -1, -1, -1,
+            -1, -1, -1, -1,
+            // Upper 128 bits
+             0,  4,  8, 12,
+            -1, -1, -1, -1,
+            -1, -1, -1, -1,
+            -1, -1, -1, -1,
+        };
+        __m256i shuffle_mask = _mm256_lddqu_si256((__m256i*)shuffle_mask_data);
+
+        constexpr int32_t permute_mask_data[8] = {
+           // Lower 128 bits
+            0, 4, -1, -1,
+            // Upper 128 bits
+            -1, -1, -1, -1
+        };
+        __m256i permute_mask = _mm256_lddqu_si256((__m256i*)permute_mask_data);
+        // Iterate from top to bottom to keep bit ordering
+        for (int i = 7; i >= 0; i--) {
+            __m256i temp_acc = _mm256_lddqu_si256(acc_ptr+i);
+
+            // Apply the threshold
+            // Divide all 32-bit elements in the SIMD lanes by 2 by shifting
+            // them right then compare if their value is greater than the
+            // threshold.
+            // Shift right logic with immediate. Shifted in numbers are 0
+            //__m256i temp = _mm256_srli_epi32(temp_acc, 1);
+            __m256i res = _mm256_cmpgt_epi32(temp_acc, avx_threshold);
+
+            // The threshold result has 32-bit lanes. We move a byte from each
+            // word to the lower 32-bit lane. Since shuffle wokrs parallel in
+            // the two halves of a 256 register. We create two int with valid
+            // bytes at the upper and lower halves, then permute everything to
+            // the lower lane in the 256 register.
+            __m256i grouped_bytes_2x32 = _mm256_shuffle_epi8(res, shuffle_mask);
+
+            __m256i grouped_bytes_1x64 = _mm256_permutevar8x32_epi32(grouped_bytes_2x32, permute_mask);
+
+            // Move the lower 64-bit of data to a register
+            _mm256_storeu_si256(buffer_ptr, grouped_bytes_1x64);
+            uint64_t temp = *(uint64_t*)buffer_ptr;
+
+            // Parallel pack
+            uint64_t ext_mask = 0x0101010101010101;
+            uint64_t extracted_bits = _pext_u64(temp, ext_mask);
+            packed_word <<= simd_elements;
+            packed_word = packed_word | extracted_bits;
+        }
+
+        return static_cast<uint32_t>(packed_word);
+    }
+
+    uint32_t threshold_pack(const std::array<uint32_t, 32>& acc, uint32_t threshold) {
+#ifdef __ASM_LIBBIN
+        return _threshold_pack_asm(acc, threshold);
+#else
+        return _threshold_pack_gen(acc, threshold);
+#endif
+    }
 }
