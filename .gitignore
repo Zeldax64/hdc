@@ -1,3 +1,5 @@
 .cache
 *.vim
 build*
+.vscode
+CMakeUserPresets.json
