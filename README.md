@@ -30,3 +30,10 @@ This generates a binary for each implemented HDC model in the path `build/hdc`. 
 ./build/emg dataset/emg
 ```
 
+## Experimental AVX-256 for binary HDC
+
+It is possible to accelerate binary HDC by using its experimental AVX-256 implementation. While it can greatly reduce execution time, it is not safe and guaranteed that the executables will run correctly. You can enable it by defining `__ASM_LIBBIN` at configure time:
+
+```
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS='-march=native -D__ASM_LIBBIN'
+```
